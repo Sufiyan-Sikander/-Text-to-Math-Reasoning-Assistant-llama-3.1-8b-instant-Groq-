@@ -1,6 +1,4 @@
 import streamlit as st
-from dotenv import load_dotenv
-import os
 from langchain_groq import ChatGroq
 from langchain.tools import tool
 from langchain.agents import create_agent
@@ -8,17 +6,6 @@ from langchain_classic.chains import LLMMathChain, LLMChain
 from langchain_classic.prompts import PromptTemplate
 from langchain_community.utilities import WikipediaAPIWrapper
 import numexpr as ne
-
-# -------------------------------------------------
-# Load .env
-# -------------------------------------------------
-load_dotenv()  # load environment variables from .env
-groq_api_key = os.getenv("GROQ_API_KEY")
-
-if not groq_api_key:
-    st.error("Groq API key not found. Please add it to your .env file.")
-    st.stop()
-
 # -------------------------------------------------
 # Streamlit Config
 # -------------------------------------------------
@@ -27,6 +14,17 @@ st.set_page_config(
     page_icon="🔢"
 )
 st.title("🔢 Text To Math & Reasoning Assistant (llama-3.1-8b-instant + Groq)")
+
+# -------------------------------------------------
+# Groq API Key Input
+# -------------------------------------------------
+groq_api_key = st.sidebar.text_input(
+    "Groq API Key",
+    type="password"
+)
+if not groq_api_key:
+    st.info("Please add your Groq API key to continue.")
+    st.stop()
 
 # -------------------------------------------------
 # LLM Initialization
@@ -39,19 +37,27 @@ llm = ChatGroq(
 # -------------------------------------------------
 # TOOLS
 # -------------------------------------------------
+
+# 1️⃣ Wikipedia Search Tool
 wiki = WikipediaAPIWrapper()
 
 @tool(description="Search Wikipedia for factual information")
 def wikipedia_search(query: str) -> str:
+    """Search Wikipedia and return a summary of the query."""
     return wiki.run(query)
 
+# 2️⃣ Calculator Tool
 @tool(description="Evaluate numeric expressions safely using Python's numexpr library")
 def calculator(expression: str) -> str:
+    """Evaluate numeric math expressions and return the result as a string."""
     try:
         return str(ne.evaluate(expression))
     except Exception:
         return "Invalid expression"
 
+
+
+# 3️⃣ Reasoning Tool
 reasoning_prompt = PromptTemplate(
     input_variables=["question"],
     template="""
@@ -65,6 +71,7 @@ reasoning_chain = LLMChain(llm=llm, prompt=reasoning_prompt)
 
 @tool(description="Solve logic and reasoning questions with explanation")
 def reasoning_tool(question: str) -> str:
+    """Solve logic and reasoning questions step by step."""
     return reasoning_chain.run(question)
 
 # -------------------------------------------------
@@ -129,3 +136,5 @@ if st.button("Find my answer"):
                 st.warning("No answer could be extracted from the model response.")
     else:
         st.warning("Please enter a question.")
+
+
